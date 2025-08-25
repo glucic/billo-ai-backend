@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Organisation;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -12,6 +12,16 @@ class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
+
+    /**
+     * The organisations that belong to the user.
+     */
+    public function organisations()
+    {
+        return $this->belongsToMany(Organisation::class)
+            ->withPivot('role')
+            ->withTimestamps();
+    }
 
     /**
      * The attributes that are mass assignable.

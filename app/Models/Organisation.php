@@ -16,4 +16,14 @@ class Organisation extends Model
         'description',
         'employee_count',
     ];
+
+    /**
+     * The users that belong to the organisation.
+     */
+    public function users()
+    {
+        return $this->belongsToMany(User::class)
+            ->withPivot('role')
+            ->withTimestamps();
+    }
 }
