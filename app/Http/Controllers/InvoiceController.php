@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\IndexRequest;
 use App\Http\Requests\InvoiceRequest;
 use App\Models\Invoice;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,26 +16,49 @@ class InvoiceController extends Controller
 {
     /**
      * Display a paginated listing of Invoices
-     * @return JsonResponse
+     * 
+     * @param \App\Http\Requests\IndexRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(IndexRequest $request): JsonResponse
     {
         try {
-            $invoices = Invoice::latest()->paginate(15);
+            if (!Auth::check()) {
+                throw new AuthenticationException('User must be authenticated');
+            }
+
+            $validated = $request->validated();
+
+            $perPage   = (int) ($validated['per_page'] ?? 15);
+            $sortBy    = $validated['sort_by'] ?? 'created_at';
+            $sortOrder = $validated['sort_order'] ?? 'desc';
+            $search    = $validated['search'] ?? null;
+
+            $allowedSortColumns = ['created_at', 'invoice_number', 'client_name', 'total'];
+            if (!in_array($sortBy, $allowedSortColumns)) {
+                $sortBy = 'created_at';
+            }
+
+            $organisationIds = Auth::user()->organisations()->pluck('organisations.id');
+            $invoices = Invoice::whereIn('organisation_id', $organisationIds)
+                ->search($search)
+                ->orderBy($sortBy, $sortOrder)
+                ->paginate($perPage);
 
             return response()->json([
                 'success' => true,
-                'data' => $invoices
+                'data' => $invoices,
             ]);
+
         } catch (Throwable $exception) {
             Log::error('Failed to fetch invoices: ' . $exception->getMessage(), [
-                'stack' => $exception->getTraceAsString()
+                'stack' => $exception->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch invoices',
-                'error' => $exception->getMessage()
+                'error' => $exception->getMessage(),
             ], 500);
         }
     }

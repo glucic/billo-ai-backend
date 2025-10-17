@@ -11,7 +11,6 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
-    Route::apiResource('invoices', controller: InvoiceController::class);
 
     Route::get('/users', function (Request $request) {
         return User::all();
@@ -21,3 +20,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('organisations/{organisation}/join', [OrganisationController::class, 'join']);
     Route::post('organisations/{organisation}/leave', [OrganisationController::class, 'leave']);
 });
+
+    Route::apiResource('invoices', controller: InvoiceController::class);

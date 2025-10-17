@@ -31,6 +31,13 @@ class Invoice extends Model
         'items' => 'array',
     ];
 
+    protected array $searchable = [
+        'invoice_number', 
+        'client_name', 
+        'description'
+    ];
+
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -40,4 +47,20 @@ class Invoice extends Model
     {
         return $this->belongsTo(Organisation::class);
     }
+
+    public function scopeSearch($query, ?string $term)
+    {
+        if (empty($term)) {
+            return $query;
+        }
+
+        $query->where(function ($q) use ($term) {
+            foreach ($this->searchable as $column) {
+                $q->orWhere($column, 'like', "%{$term}%");
+            }
+        });
+
+        return $query;
+    }
+
 }
