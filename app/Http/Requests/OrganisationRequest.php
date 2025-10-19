@@ -24,6 +24,10 @@ class OrganisationRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:255',
+            'street' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'zip' => 'nullable|string|max:20',
+            'region' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'description' => 'nullable|string|max:1000',

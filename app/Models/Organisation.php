@@ -10,7 +10,10 @@ class Organisation extends Model
 
     protected $fillable = [
         'name',
-        'address',
+        'street',
+        'city',
+        'zip',
+        'region',
         'phone',
         'email',
         'description',

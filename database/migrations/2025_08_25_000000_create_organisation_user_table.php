@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('organisation_id')->constrained()->onDelete('cascade');
             $table->string('role')->default('member'); // Possible values: admin, member
             $table->timestamps();
-            
+
             // Prevent duplicate relationships
             $table->unique(['user_id', 'organisation_id']);
         });

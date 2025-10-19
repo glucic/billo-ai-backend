@@ -16,26 +16,23 @@ class InvoiceController extends Controller
 {
     /**
      * Display a paginated listing of Invoices
-     * 
-     * @param \App\Http\Requests\IndexRequest $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function index(IndexRequest $request): JsonResponse
     {
         try {
-            if (!Auth::check()) {
+            if (! Auth::check()) {
                 throw new AuthenticationException('User must be authenticated');
             }
 
             $validated = $request->validated();
 
-            $perPage   = (int) ($validated['per_page'] ?? 15);
-            $sortBy    = $validated['sort_by'] ?? 'created_at';
+            $perPage = (int) ($validated['per_page'] ?? 15);
+            $sortBy = $validated['sort_by'] ?? 'created_at';
             $sortOrder = $validated['sort_order'] ?? 'desc';
-            $search    = $validated['search'] ?? null;
+            $search = $validated['search'] ?? null;
 
             $allowedSortColumns = ['created_at', 'invoice_number', 'client_name', 'total'];
-            if (!in_array($sortBy, $allowedSortColumns)) {
+            if (! in_array($sortBy, $allowedSortColumns)) {
                 $sortBy = 'created_at';
             }
 
@@ -51,7 +48,7 @@ class InvoiceController extends Controller
             ]);
 
         } catch (Throwable $exception) {
-            Log::error('Failed to fetch invoices: ' . $exception->getMessage(), [
+            Log::error('Failed to fetch invoices: '.$exception->getMessage(), [
                 'stack' => $exception->getTraceAsString(),
             ]);
 
@@ -71,35 +68,35 @@ class InvoiceController extends Controller
 
         try {
             $invoice = Invoice::create([
-                'invoice_number'    => $data['invoiceDetails']['invoiceNumber'],
-                'invoice_date'      => $data['invoiceDetails']['invoiceDate'],
-                'due_date'          => $data['invoiceDetails']['dueDate'] ?? null,
-                'reference'         => $data['invoiceDetails']['reference'] ?? null,
-                'issuer'            => $data['issuer'],
-                'client'            => $data['client'],
-                'items'             => $data['items'],
-                'user_id'           => Auth::id(),
-                'organisation_id'   => Auth::user()->organisations()->first()->id
+                'invoice_number' => $data['invoiceDetails']['invoiceNumber'],
+                'invoice_date' => $data['invoiceDetails']['invoiceDate'],
+                'due_date' => $data['invoiceDetails']['dueDate'] ?? null,
+                'reference' => $data['invoiceDetails']['reference'] ?? null,
+                'issuer' => $data['issuer'],
+                'client' => $data['client'],
+                'items' => $data['items'],
+                'user_id' => Auth::id(),
+                'organisation_id' => Auth::user()->organisations()->first()->id,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'invoice' => $invoice
+                'invoice' => $invoice,
             ], 201);
         } catch (Throwable $e) {
             DB::rollBack();
 
-            Log::error('Invoice creation failed: ' . $e->getMessage(), [
+            Log::error('Invoice creation failed: '.$e->getMessage(), [
                 'stack' => $e->getTraceAsString(),
-                'payload' => $data
+                'payload' => $data,
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create invoice',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
