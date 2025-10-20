@@ -46,7 +46,6 @@ class InvoiceController extends Controller
                 'success' => true,
                 'data' => $invoices,
             ]);
-
         } catch (Throwable $exception) {
             Log::error('Failed to fetch invoices: '.$exception->getMessage(), [
                 'stack' => $exception->getTraceAsString(),
@@ -75,6 +74,7 @@ class InvoiceController extends Controller
                 'issuer' => $data['issuer'],
                 'client' => $data['client'],
                 'items' => $data['items'],
+                'totals' => $data['totals'],
                 'user_id' => Auth::id(),
                 'organisation_id' => Auth::user()->organisations()->first()->id,
             ]);
@@ -97,6 +97,52 @@ class InvoiceController extends Controller
                 'success' => false,
                 'message' => 'Failed to create invoice',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function show(int $id): JsonResponse
+    {
+        try {
+            if (! Auth::check()) {
+                throw new AuthenticationException('User must be authenticated');
+            }
+
+            DB::beginTransaction();
+
+            $user = Auth::user();
+            $organisationIds = $user->organisations()->pluck('organisations.id');
+
+            // Only allow access to invoices belonging to user's organisations
+            $invoice = Invoice::whereIn('organisation_id', $organisationIds)
+                ->where('id', $id)
+                ->first();
+
+            DB::commit();
+
+            if (! $invoice) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice not found or access denied.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $invoice,
+            ]);
+        } catch (Throwable $exception) {
+            DB::rollBack();
+
+            Log::error('Failed to fetch invoice: '.$exception->getMessage(), [
+                'id' => $id,
+                'stack' => $exception->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch invoice details',
+                'error' => $exception->getMessage(),
             ], 500);
         }
     }

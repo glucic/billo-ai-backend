@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
@@ -19,6 +18,7 @@ class Invoice extends Model
         'issuer',
         'client',
         'items',
+        'totals',
         'user_id',
         'organisation_id',
     ];
@@ -29,21 +29,21 @@ class Invoice extends Model
         'issuer' => 'array',
         'client' => 'array',
         'items' => 'array',
+        'totals' => 'array',
     ];
 
     protected array $searchable = [
-        'invoice_number', 
-        'client_name', 
-        'description'
+        'invoice_number',
+        'client_name',
+        'description',
     ];
 
-
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function organisation()
+    public function organisation(): BelongsTo
     {
         return $this->belongsTo(Organisation::class);
     }
@@ -62,5 +62,4 @@ class Invoice extends Model
 
         return $query;
     }
-
 }
