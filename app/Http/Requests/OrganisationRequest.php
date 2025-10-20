@@ -23,11 +23,11 @@ class OrganisationRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'street' => ['nullable', 'string', 'max:255'],
-            'city' => ['nullable', 'string', 'max:255'],
-            'zip' => ['nullable', 'string', 'max:20'],
+            'street' => ['required', 'nullable', 'string', 'max:255'],
+            'city' => ['required', 'nullable', 'string', 'max:255'],
+            'zip' => ['required', 'nullable', 'string', 'max:20'],
             'region' => ['nullable', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['required', 'nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:25', 'regex:/^\+?[0-9\s\-()]*$/'],
             'description' => ['nullable', 'string', 'max:1000'],
             'employee_count' => ['nullable', 'integer', 'min:1'],
