@@ -24,6 +24,7 @@ class InvoiceController extends Controller
                 throw new AuthenticationException('User must be authenticated');
             }
 
+            $user = Auth::user();
             $validated = $request->validated();
 
             $perPage = (int) ($validated['per_page'] ?? 15);
@@ -35,12 +36,21 @@ class InvoiceController extends Controller
             if (! in_array($sortBy, $allowedSortColumns)) {
                 $sortBy = 'created_at';
             }
+            
+            $organisationIds = $user->organisations()->pluck('organisations.id')->toArray();
 
-            $organisationIds = Auth::user()->organisations()->pluck('organisations.id');
-            $invoices = Invoice::whereIn('organisation_id', $organisationIds)
-                ->search($search)
-                ->orderBy($sortBy, $sortOrder)
-                ->paginate($perPage);
+            if (count($organisationIds) > 0) {
+                $invoices = Invoice::whereIn('organisation_id', $organisationIds)
+                    ->search($search)
+                    ->orderBy($sortBy, $sortOrder)
+                    ->paginate($perPage);
+            } else {
+                $invoices = Invoice::where('user_id', $user->id)
+                    ->search($search)
+                    ->orderBy($sortBy, $sortOrder)
+                    ->paginate($perPage);
+            }
+
 
             return response()->json([
                 'success' => true,
@@ -54,7 +64,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch invoices',
-                'error' => $exception->getMessage(),
+                'error' => $exception->getMessage()
             ], 500);
         }
     }
@@ -76,7 +86,7 @@ class InvoiceController extends Controller
                 'items' => $data['items'],
                 'totals' => $data['totals'],
                 'user_id' => Auth::id(),
-                'organisation_id' => Auth::user()->organisations()->first()->id,
+                'organisation_id' => Auth::user()->organisations()->first()->id ?? null,
             ]);
 
             DB::commit();
@@ -125,7 +135,7 @@ class InvoiceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'invoice' => $invoice->fresh(), // Return updated instance
+                'invoice' => $invoice->fresh(),
             ], 200);
         } catch (Throwable $e) {
             DB::rollBack();
@@ -153,12 +163,19 @@ class InvoiceController extends Controller
             DB::beginTransaction();
 
             $user = Auth::user();
-            $organisationIds = $user->organisations()->pluck('organisations.id');
 
-            $invoice = Invoice::whereIn('organisation_id', $organisationIds)
-                ->where('id', $id)
-                ->first();
+            $organisationIds = $user->organisations()->pluck('organisations.id')->toArray();
 
+            if (count($organisationIds) > 0) {
+                $invoice = Invoice::whereIn('organisation_id', $organisationIds)
+                    ->where('id', $id)
+                    ->first();
+            } else {
+                $invoice = Invoice::where('user_id', $user->id)
+                    ->where('id', $id)
+                    ->first();
+            }
+            
             DB::commit();
 
             if (! $invoice) {

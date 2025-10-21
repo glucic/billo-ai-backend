@@ -20,7 +20,7 @@ return new class extends Migration
             $table->json('items');
 
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('organisation_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('organisation_id')->nullable()->constrained()->cascadeOnDelete();
 
             $table->timestamps();
         });

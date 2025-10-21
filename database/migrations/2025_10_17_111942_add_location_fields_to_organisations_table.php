@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('organisations', function (Blueprint $table) {
-            $table->string('address')->nullable()->after('description');
-            $table->string('street')->nullable()->after('address');
+            $table->string('street')->nullable()->after('email');
             $table->string('city')->nullable()->after('street');
             $table->string('zip')->nullable()->after('city');
             $table->string('region')->nullable()->after('zip');

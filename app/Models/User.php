@@ -14,16 +14,6 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasApiTokens;
 
     /**
-     * The organisations that belong to the user.
-     */
-    public function organisations()
-    {
-        return $this->belongsToMany(Organisation::class)
-            ->withPivot('role')
-            ->withTimestamps();
-    }
-
-    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -57,4 +47,16 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    
+    /**
+     * The organisations that belong to the user.
+     */
+    public function organisations()
+    {
+        return $this->belongsToMany(Organisation::class)
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
 }
