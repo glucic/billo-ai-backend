@@ -85,6 +85,8 @@ class InvoiceController extends Controller
                 'client' => $data['client'],
                 'items' => $data['items'],
                 'totals' => $data['totals'],
+                'legal' => $data['legal'] ?? null,
+                'footer' => $data['footer'] ?? null,
                 'user_id' => Auth::id(),
                 'organisation_id' => Auth::user()->organisations()->first()->id ?? null,
             ]);
@@ -129,6 +131,8 @@ class InvoiceController extends Controller
                 'client' => $data['client'],
                 'items' => $data['items'],
                 'totals' => $data['totals'],
+                'legal' => $data['legal'] ?? null,
+                'footer' => $data['footer'] ?? null,
             ]);
 
             DB::commit();

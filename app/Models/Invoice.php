@@ -19,6 +19,8 @@ class Invoice extends Model
         'client',
         'items',
         'totals',
+        'legal',
+        'footer',
         'user_id',
         'organisation_id',
     ];
@@ -30,6 +32,8 @@ class Invoice extends Model
         'client' => 'array',
         'items' => 'array',
         'totals' => 'array',
+        'legal' => 'array',
+        'footer' => 'array',
     ];
 
     protected array $searchable = [

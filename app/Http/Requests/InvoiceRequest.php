@@ -57,6 +57,12 @@ class InvoiceRequest extends FormRequest
             'totals.totalNet' => ['required', 'numeric', 'min:0'],
             'totals.totalGross' => ['required', 'numeric', 'min:0'],
             'totals.amountDue' => ['required', 'numeric', 'min:0'],
+
+            'legal' => ['nullable', 'array'],
+            'legal.termsAndConditions' => ['nullable', 'string'],
+            
+            'footer' => ['nullable', 'array'],
+            'footer.notes' => ['nullable', 'string'],
         ];
     }
 }
