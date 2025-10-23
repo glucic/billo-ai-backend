@@ -10,11 +10,8 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
 
-    //Route::apiResource('invoices', controller: InvoiceController::class);
+    Route::apiResource('invoices', controller: InvoiceController::class);
     Route::apiResource('organisations', OrganisationController::class);
     Route::post('organisations/{organisation}/join', [OrganisationController::class, 'join']);
     Route::post('organisations/{organisation}/leave', [OrganisationController::class, 'leave']);
 });
-
-    Route::apiResource('invoices', controller: InvoiceController::class);
-
