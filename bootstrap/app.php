@@ -20,6 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         ]);
 
+        $middleware->alias([
+            'api.rateLimit' => \App\Http\Middleware\ApiRateLimiting::class,
+        ]);
         //
     })
     ->withExceptions(function (Exceptions $exceptions) {
