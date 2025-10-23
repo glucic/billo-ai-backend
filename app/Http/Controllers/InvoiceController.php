@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\IndexRequest;
 use App\Http\Requests\InvoiceRequest;
+use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
 use Illuminate\Auth\AuthenticationException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,12 +17,10 @@ class InvoiceController extends Controller
     /**
      * Display a paginated listing of Invoices
      */
-    public function index(IndexRequest $request): JsonResponse
+    public function index(IndexRequest $request)
     {
         try {
-            if (! Auth::check()) {
-                throw new AuthenticationException('User must be authenticated');
-            }
+            $this->authorize('viewAny', Invoice::class);
 
             $user = Auth::user();
             $validated = $request->validated();
@@ -51,25 +49,23 @@ class InvoiceController extends Controller
                     ->paginate($perPage);
             }
 
-
-            return response()->json([
-                'success' => true,
-                'data' => $invoices,
-            ]);
+            return InvoiceResource::collection($invoices);
         } catch (Throwable $exception) {
             Log::error('Failed to fetch invoices: '.$exception->getMessage(), [
                 'stack' => $exception->getTraceAsString(),
             ]);
 
+            $status = ($exception instanceof AuthenticationException) ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch invoices',
                 'error' => $exception->getMessage()
-            ], 500);
+            ], $status);
         }
     }
 
-    public function store(InvoiceRequest $request): JsonResponse
+    public function store(InvoiceRequest $request)
     {
         $data = $request->validated();
 
@@ -93,10 +89,7 @@ class InvoiceController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'invoice' => $invoice,
-            ], 201);
+            return new InvoiceResource($invoice);
         } catch (Throwable $e) {
             DB::rollBack();
 
@@ -113,7 +106,7 @@ class InvoiceController extends Controller
         }
     }
 
-    public function update(InvoiceRequest $request, int $id): JsonResponse
+    public function update(InvoiceRequest $request, int $id)
     {
         $data = $request->validated();
 
@@ -121,6 +114,8 @@ class InvoiceController extends Controller
 
         try {
             $invoice = Invoice::findOrFail($id);
+
+            $this->authorize('update', $invoice);
 
             $invoice->update([
                 'invoice_number' => $data['invoiceDetails']['invoiceNumber'],
@@ -137,62 +132,48 @@ class InvoiceController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'invoice' => $invoice->fresh(),
-            ], 200);
+            return new InvoiceResource($invoice->fresh());
         } catch (Throwable $e) {
             DB::rollBack();
 
             Log::error('Invoice update failed: '.$e->getMessage(), [
                 'stack' => $e->getTraceAsString(),
                 'payload' => $data,
+                'id' => $id,
             ]);
+
+            $status = ($e instanceof AuthenticationException) ? 403 : 500;
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update invoice',
                 'error' => $e->getMessage(),
-            ], 500);
+            ], $status);
         }
     }
 
-    public function show(int $id): JsonResponse
+    public function show(int $id)
     {
         try {
-            if (! Auth::check()) {
-                throw new AuthenticationException('User must be authenticated');
-            }
-
             DB::beginTransaction();
 
             $user = Auth::user();
 
-            $organisationIds = $user->organisations()->pluck('organisations.id')->toArray();
-
-            if (count($organisationIds) > 0) {
-                $invoice = Invoice::whereIn('organisation_id', $organisationIds)
-                    ->where('id', $id)
-                    ->first();
-            } else {
-                $invoice = Invoice::where('user_id', $user->id)
-                    ->where('id', $id)
-                    ->first();
-            }
-            
-            DB::commit();
+            $invoice = Invoice::where('id', $id)->first();
 
             if (! $invoice) {
+                DB::commit();
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invoice not found or access denied.',
+                    'message' => 'Invoice not found.',
                 ], 404);
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => $invoice,
-            ]);
+            $this->authorize('view', $invoice);
+
+            DB::commit();
+
+            return new InvoiceResource($invoice);
         } catch (Throwable $exception) {
             DB::rollBack();
 
@@ -201,11 +182,13 @@ class InvoiceController extends Controller
                 'stack' => $exception->getTraceAsString(),
             ]);
 
+            $status = ($exception instanceof AuthenticationException) ? 403 : 500;
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch invoice details',
                 'error' => $exception->getMessage(),
-            ], 500);
+            ], $status);
         }
     }
 }

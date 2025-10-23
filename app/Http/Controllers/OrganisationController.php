@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\OrganisationRequest;
 use App\Http\Resources\OrganisationResource;
 use App\Models\Organisation;
-use App\Models\User;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class OrganisationController extends Controller
 {
@@ -16,12 +19,26 @@ class OrganisationController extends Controller
      */
     public function index(Request $request)
     {
-        // Get user's organisations or return empty collection if none exist
-        $organisations = $request->user()->organisations()
-            ->with('users')
-            ->paginate(10);
+        try {
+            $this->authorize('viewAny', Organisation::class);
+            
+            // Get user's organisations or return empty collection if none exist
+            $organisations = $request->user()->organisations()
+                ->with('users')
+                ->paginate(10);
 
-        return OrganisationResource::collection($organisations);
+            return OrganisationResource::collection($organisations);
+        } catch (Throwable $e) {
+            Log::error('Failed to fetch organisations: '.$e->getMessage(), [
+                'stack' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch organisations',
+                'error' => $e->getMessage()
+            ], ($e instanceof AuthenticationException) ? 403 : 500);
+        }
     }
 
     /**
@@ -29,12 +46,33 @@ class OrganisationController extends Controller
      */
     public function store(OrganisationRequest $request)
     {
-        $organisation = Organisation::create($request->validated());
-        
-        // Always attach the creating user as admin
-        $organisation->users()->attach(Auth::id(), ['role' => 'admin']);
-        
-        return new OrganisationResource($organisation->load('users'));
+        $data = $request->validated();
+
+        DB::beginTransaction();
+
+        try {
+            $organisation = Organisation::create($data);
+
+            // Always attach the creating user as admin
+            $organisation->users()->attach(Auth::id(), ['role' => 'admin']);
+
+            DB::commit();
+
+            return new OrganisationResource($organisation->load('users'));
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Organisation creation failed: '.$e->getMessage(), [
+                'stack' => $e->getTraceAsString(),
+                'payload' => $data,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create organisation',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -42,13 +80,22 @@ class OrganisationController extends Controller
      */
     public function show(Request $request, Organisation $organisation)
     {
-        // Allow viewing if user belongs to organisation
-        if ($organisation->users()->where('user_id', $request->user()->id)->exists()) {
-            return new OrganisationResource($organisation->load('users'));
-        }
+        try {
+            $this->authorize('view', $organisation);
 
-        // For users without access, only return basic public info
-        return new OrganisationResource($organisation->makeHidden(['users', 'email', 'phone']));
+            return new OrganisationResource($organisation->load('users'));
+        } catch (Throwable $e) {
+            Log::error('Failed to fetch organisation: '.$e->getMessage(), [
+                'id' => $organisation->id ?? null,
+                'stack' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch organisation',
+                'error' => $e->getMessage(),
+            ], ($e instanceof AuthenticationException) ? 403 : 500);
+        }
     }
 
     /**
@@ -56,11 +103,33 @@ class OrganisationController extends Controller
      */
     public function update(OrganisationRequest $request, Organisation $organisation)
     {
-        // Check if user belongs to the organisation and is an admin
-        abort_if(!$organisation->users()->where('user_id', Auth::id())->where('role', 'admin')->exists(), 403);
+        $data = $request->validated();
 
-        $organisation->update($request->validated());
-        return new OrganisationResource($organisation->load('users'));
+        DB::beginTransaction();
+
+        try {
+            $this->authorize('update', $organisation);
+
+            $organisation->update($data);
+
+            DB::commit();
+
+            return new OrganisationResource($organisation->load('users'));
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Organisation update failed: '.$e->getMessage(), [
+                'id' => $organisation->id,
+                'stack' => $e->getTraceAsString(),
+                'payload' => $data,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update organisation',
+                'error' => $e->getMessage(),
+            ], ($e instanceof AuthenticationException) ? 403 : 500);
+        }
     }
 
     /**
@@ -68,11 +137,30 @@ class OrganisationController extends Controller
      */
     public function destroy(Request $request, Organisation $organisation)
     {
-        // Check if user belongs to the organisation and is an admin
-        abort_if(!$organisation->users()->where('user_id', Auth::id())->where('role', 'admin')->exists(), 403);
+        DB::beginTransaction();
 
-        $organisation->delete();
-        return response()->json(null, 204);
+        try {
+            $this->authorize('delete', $organisation);
+
+            $organisation->delete();
+
+            DB::commit();
+
+            return response()->json(null, 204);
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Organisation delete failed: '.$e->getMessage(), [
+                'id' => $organisation->id,
+                'stack' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete organisation',
+                'error' => $e->getMessage(),
+            ], ($e instanceof AuthenticationException) ? 403 : 500);
+        }
     }
 
     /**
@@ -80,8 +168,26 @@ class OrganisationController extends Controller
      */
     public function join(Request $request, Organisation $organisation)
     {
-        $organisation->users()->attach($request->user()->id);
-        return new OrganisationResource($organisation->load('users'));
+        try {
+            $this->authorize('join', $organisation);
+
+            if (! $organisation->users()->where('user_id', $request->user()->id)->exists()) {
+                $organisation->users()->attach($request->user()->id);
+            }
+
+            return new OrganisationResource($organisation->load('users'));
+        } catch (Throwable $e) {
+            Log::error('Failed to join organisation: '.$e->getMessage(), [
+                'id' => $organisation->id,
+                'stack' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to join organisation',
+                'error' => $e->getMessage(),
+            ], ($e instanceof AuthenticationException) ? 403 : 500);
+        }
     }
 
     /**
@@ -89,7 +195,22 @@ class OrganisationController extends Controller
      */
     public function leave(Request $request, Organisation $organisation)
     {
-        $organisation->users()->detach($request->user()->id);
-        return response()->json(null, 204);
+        try {
+            $this->authorize('leave', $organisation);
+
+            $organisation->users()->detach($request->user()->id);
+            return response()->json(null, 204);
+        } catch (Throwable $e) {
+            Log::error('Failed to leave organisation: '.$e->getMessage(), [
+                'id' => $organisation->id,
+                'stack' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to leave organisation',
+                'error' => $e->getMessage(),
+            ], ($e instanceof AuthenticationException) ? 403 : 500);
+        }
     }
 }
